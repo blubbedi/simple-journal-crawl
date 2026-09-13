@@ -1,8 +1,9 @@
 ﻿name: Release Creation
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -16,9 +17,11 @@ jobs:
       - name: Create Module Zip
         run: zip -r ./module.zip module.json crawl.js
 
-      - name: Upload Release Assets
+      - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: latest
+          name: Latest Release
           files: |
             module.json
             module.zip

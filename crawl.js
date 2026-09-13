@@ -1,12 +1,10 @@
-﻿// ==================== EINSTELLUNGEN ====================
-const CRAWL_SETTINGS = {
-  triggerScene: "Abspann",                      // Exakter Name der Ziel-Szene
-  journalName: "Charakterliste (11.9.2026)",     // Name des Journals
-  scrollSpeedPxPerSec: 40,                       // Scrolltempo (niedriger = langsamer)
-  loop: false,                                   // true = wiederholt sich endlos; false = stoppt nach einem Durchlauf
-  backgroundColor: "rgba(0, 0, 0, 0.75)"         // Hintergrund-Abdunklung
+﻿const CRAWL_SETTINGS = {
+  triggerScene: "Abspann",
+  journalName: "Charakterliste (11.9.2026)",
+  scrollSpeedPxPerSec: 40,
+  loop: false,
+  backgroundColor: "rgba(0, 0, 0, 0.75)"
 };
-// =======================================================
 
 Hooks.on("canvasReady", async (canvas) => {
   if (CRAWL_SETTINGS.triggerScene && canvas.scene?.name !== CRAWL_SETTINGS.triggerScene) {
