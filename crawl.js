@@ -1,5 +1,4 @@
 const MODULE_ID = "simple-journal-crawl";
-let crawlAudioMuted = false;
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "triggerScene", {
@@ -65,67 +64,31 @@ Hooks.on("canvasReady", async (canvas) => {
   if (!triggerSceneId) return;
 
   if (canvas.scene?.id === triggerSceneId) {
-    crawlAudioMuted = false;
-    await playSceneAudio(canvas.scene);
+    unlockAndPlaySceneAudio(canvas.scene);
     await startJournalCrawl();
   } else {
     cleanupCrawl();
   }
 });
 
-function resolveScenePlaylist(scene) {
-  if (!scene) return null;
-  if (scene.playlist?.playAll) return scene.playlist;
-  if (typeof scene.playlist === "string") return game.playlists.get(scene.playlist);
-  if (scene.playlistSound) {
-    const pl = game.playlists.find(p => p.sounds.has(scene.playlistSound));
-    if (pl) return pl;
-  }
-  return null;
-}
-
-async function playSceneAudio(scene) {
-  if (crawlAudioMuted) return;
-
+async function unlockAndPlaySceneAudio(scene) {
   try {
     if (game.audio?.unlock) {
       await game.audio.unlock();
     }
-
-    const playlist = resolveScenePlaylist(scene);
-    if (playlist) {
-      if (!playlist.playing) {
+    if (scene?.playlist) {
+      const playlist = typeof scene.playlist === "string" ? game.playlists.get(scene.playlist) : scene.playlist;
+      if (playlist && !playlist.playing) {
         await playlist.playAll();
       }
-    } else if (canvas.sounds?.objects?.children?.length) {
-      for (const sound of canvas.sounds.objects.children) {
-        sound.play();
-      }
     }
   } catch (err) {
-    console.warn("[Simple Journal Crawl] Audio-Start blockiert oder fehlgeschlagen:", err);
-  }
-}
-
-async function stopSceneAudio(scene) {
-  try {
-    const playlist = resolveScenePlaylist(scene);
-    if (playlist && playlist.playing) {
-      await playlist.stopAll();
-    }
-    if (canvas.sounds?.objects?.children?.length) {
-      for (const sound of canvas.sounds.objects.children) {
-        sound.stop();
-      }
-    }
-  } catch (err) {
-    console.warn("[Simple Journal Crawl] Audio-Stopp fehlgeschlagen:", err);
+    console.warn("[Simple Journal Crawl] Audio konnte nicht automatisch gestartet werden:", err);
   }
 }
 
 function cleanupCrawl() {
   document.getElementById("simple-crawl-container")?.remove();
-  document.getElementById("simple-crawl-audio-btn")?.remove();
   document.getElementById("simple-crawl-style")?.remove();
 }
 
@@ -163,28 +126,6 @@ async function startJournalCrawl(overrideJournalId = null) {
   container.id = "simple-crawl-container";
   container.innerHTML = `<div id="simple-crawl-content">${pagesHtml.join("")}</div>`;
   document.body.appendChild(container);
-
-  // Audio-Button links neben der Foundry-Sidebar
-  const audioBtn = document.createElement("button");
-  audioBtn.id = "simple-crawl-audio-btn";
-  audioBtn.innerHTML = "🔊 Ton an";
-  audioBtn.title = "Szenen-Audio ein-/ausschalten";
-  document.body.appendChild(audioBtn);
-
-  audioBtn.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    crawlAudioMuted = !crawlAudioMuted;
-
-    if (crawlAudioMuted) {
-      await stopSceneAudio(canvas.scene);
-      audioBtn.innerHTML = "🔇 Ton aus";
-      audioBtn.classList.add("muted");
-    } else {
-      audioBtn.innerHTML = "🔊 Ton an";
-      audioBtn.classList.remove("muted");
-      await playSceneAudio(canvas.scene);
-    }
-  });
 
   const contentEl = document.getElementById("simple-crawl-content");
   const totalHeight = contentEl.offsetHeight;
@@ -245,36 +186,6 @@ async function startJournalCrawl(overrideJournalId = null) {
     }
     #simple-crawl-content td, #simple-crawl-content th {
       padding: 0.5rem 1.5rem;
-    }
-    #simple-crawl-audio-btn {
-      position: fixed;
-      right: 325px;
-      bottom: 25px;
-      z-index: 9999;
-      background: rgba(18, 18, 22, 0.9);
-      color: #ffdf9e;
-      border: 1px solid #c9a55c;
-      border-radius: 8px;
-      padding: 10px 18px;
-      font-size: 1rem;
-      font-weight: bold;
-      font-family: var(--font-primary, sans-serif);
-      cursor: pointer;
-      pointer-events: auto;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
-      transition: all 0.2s ease;
-    }
-    #simple-crawl-audio-btn:hover {
-      background: rgba(30, 30, 40, 1);
-      border-color: #ffd700;
-      color: #ffffff;
-      transform: scale(1.05);
-    }
-    #simple-crawl-audio-btn.muted {
-      color: #999999;
-      border-color: rgba(140, 140, 140, 0.4);
-      background: rgba(15, 15, 18, 0.85);
-      transform: none;
     }
     @keyframes runCrawl {
       0% { transform: translateY(${screenHeight}px); }
