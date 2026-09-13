@@ -49,11 +49,32 @@ Hooks.on("canvasReady", async (canvas) => {
   if (!triggerSceneId) return;
 
   if (canvas.scene?.id === triggerSceneId) {
+    // Versuche, den Audio-Kontext von Foundry zu entsperren & Szenen-Sound zu starten
+    unlockAndPlaySceneAudio(canvas.scene);
     await startJournalCrawl();
   } else {
     cleanupCrawl();
   }
 });
+
+async function unlockAndPlaySceneAudio(scene) {
+  try {
+    // 1. Foundrys globalen Audio-Kontext freigeben
+    if (game.audio?.unlock) {
+      await game.audio.unlock();
+    }
+
+    // 2. Falls in der Szene eine Playlist hinterlegt ist, diese gezielt abspielen
+    if (scene?.playlist) {
+      const playlist = scene.playlist;
+      if (!playlist.playing) {
+        await playlist.playAll();
+      }
+    }
+  } catch (err) {
+    console.warn("[Simple Journal Crawl] Audio konnte nicht automatisch gestartet werden:", err);
+  }
+}
 
 function cleanupCrawl() {
   document.getElementById("simple-crawl-container")?.remove();
@@ -147,7 +168,6 @@ async function startJournalCrawl(overrideJournalId = null) {
   `;
   document.head.appendChild(style);
 
-  // Nach Ablauf der CSS-Animation wird das Overlay automatisch aufgeraeumt
   contentEl.addEventListener("animationend", () => {
     cleanupCrawl();
   }, { once: true });
