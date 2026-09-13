@@ -8,18 +8,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Create Module Zip
-        run: zip -r ./module.zip module.json crawl.js
+      - name: Create Zip Package
+        run: zip -r module.zip module.json crawl.js README.md -x "*.git*"
 
-      - name: Create or Update Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             module.json
             module.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
