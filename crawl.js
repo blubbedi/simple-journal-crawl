@@ -42,6 +42,21 @@ Hooks.once("init", () => {
     range: { min: 10, max: 150, step: 5 },
     default: 40
   });
+
+  game.settings.register(MODULE_ID, "fadeStyle", {
+    name: "Ein- und Ausblenden (Fading)",
+    hint: "Waehle die optische Blende fuer den Lauftext.",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      "mask": "Kino-Maske (Oben & Unten weich verlaufend)",
+      "fadeFull": "Globales Ein- & Ausblenden (Gesamtebene)",
+      "both": "Kombiniert (Kino-Maske + Ein-/Ausblenden)",
+      "none": "Kein Fading (Hart abgeschnitten)"
+    },
+    default: "mask"
+  });
 });
 
 Hooks.on("canvasReady", async (canvas) => {
@@ -49,7 +64,6 @@ Hooks.on("canvasReady", async (canvas) => {
   if (!triggerSceneId) return;
 
   if (canvas.scene?.id === triggerSceneId) {
-    // Versuche, den Audio-Kontext von Foundry zu entsperren & Szenen-Sound zu starten
     unlockAndPlaySceneAudio(canvas.scene);
     await startJournalCrawl();
   } else {
@@ -59,12 +73,9 @@ Hooks.on("canvasReady", async (canvas) => {
 
 async function unlockAndPlaySceneAudio(scene) {
   try {
-    // 1. Foundrys globalen Audio-Kontext freigeben
     if (game.audio?.unlock) {
       await game.audio.unlock();
     }
-
-    // 2. Falls in der Szene eine Playlist hinterlegt ist, diese gezielt abspielen
     if (scene?.playlist) {
       const playlist = scene.playlist;
       if (!playlist.playing) {
@@ -109,6 +120,8 @@ async function startJournalCrawl(overrideJournalId = null) {
   if (pagesHtml.length === 0) return;
 
   const speed = game.settings.get(MODULE_ID, "scrollSpeed") || 40;
+  const fade = game.settings.get(MODULE_ID, "fadeStyle") || "mask";
+
   const container = document.createElement("div");
   container.id = "simple-crawl-container";
   container.innerHTML = `<div id="simple-crawl-content">${pagesHtml.join("")}</div>`;
@@ -118,6 +131,19 @@ async function startJournalCrawl(overrideJournalId = null) {
   const totalHeight = contentEl.offsetHeight;
   const screenHeight = window.innerHeight;
   const duration = Math.max(15, Math.round((totalHeight + screenHeight) / speed));
+
+  // CSS-Maskierung fuer weiche Raender oben und unten
+  const maskRule = (fade === "mask" || fade === "both")
+    ? `
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%);
+      mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%);
+    `
+    : "";
+
+  // Globale Opacity-Blende (Ein- und Ausfaden der gesamten Flaeche)
+  const containerAnimation = (fade === "fadeFull" || fade === "both")
+    ? `animation: containerFade ${duration}s ease-in-out forwards;`
+    : "";
 
   const style = document.createElement("style");
   style.id = "simple-crawl-style";
@@ -134,6 +160,8 @@ async function startJournalCrawl(overrideJournalId = null) {
       display: flex;
       justify-content: center;
       pointer-events: none;
+      ${maskRule}
+      ${containerAnimation}
     }
     #simple-crawl-content {
       position: absolute;
@@ -164,6 +192,12 @@ async function startJournalCrawl(overrideJournalId = null) {
     @keyframes runCrawl {
       0% { transform: translateY(${screenHeight}px); }
       100% { transform: translateY(-${totalHeight + 100}px); }
+    }
+    @keyframes containerFade {
+      0% { opacity: 0; }
+      5% { opacity: 1; }
+      92% { opacity: 1; }
+      100% { opacity: 0; }
     }
   `;
   document.head.appendChild(style);
