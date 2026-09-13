@@ -1,10 +1,12 @@
-﻿const CRAWL_SETTINGS = {
+// ==================== EINSTELLUNGEN ====================
+const CRAWL_SETTINGS = {
   triggerScene: "Abspann",
   journalName: "Charakterliste (11.9.2026)",
   scrollSpeedPxPerSec: 40,
   loop: false,
   backgroundColor: "rgba(0, 0, 0, 0.75)"
 };
+// =======================================================
 
 Hooks.on("canvasReady", async (canvas) => {
   if (CRAWL_SETTINGS.triggerScene && canvas.scene?.name !== CRAWL_SETTINGS.triggerScene) {
