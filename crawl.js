@@ -57,6 +57,15 @@ Hooks.once("init", () => {
     },
     default: "mask"
   });
+
+  game.settings.register(MODULE_ID, "interactiveControl", {
+    name: "Interaktive Steuerung (Pause & Mausrad)",
+    hint: "Pausiert den Lauftext bei Mouseover und erlaubt manuelles Scrollen / Scrubben per Mausrad.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
 });
 
 Hooks.on("canvasReady", async (canvas) => {
@@ -121,6 +130,7 @@ async function startJournalCrawl(overrideJournalId = null) {
 
   const speed = game.settings.get(MODULE_ID, "scrollSpeed") || 40;
   const fade = game.settings.get(MODULE_ID, "fadeStyle") || "mask";
+  const interactive = game.settings.get(MODULE_ID, "interactiveControl");
 
   const container = document.createElement("div");
   container.id = "simple-crawl-container";
@@ -143,6 +153,8 @@ async function startJournalCrawl(overrideJournalId = null) {
     ? `animation: containerFade ${duration}s ease-in-out forwards;`
     : "";
 
+  const pointerEventsRule = interactive ? "pointer-events: auto;" : "pointer-events: none;";
+
   const style = document.createElement("style");
   style.id = "simple-crawl-style";
   style.innerHTML = `
@@ -157,7 +169,7 @@ async function startJournalCrawl(overrideJournalId = null) {
       overflow: hidden;
       display: flex;
       justify-content: center;
-      pointer-events: none;
+      ${pointerEventsRule}
       ${maskRule}
       ${containerAnimation}
     }
@@ -173,7 +185,7 @@ async function startJournalCrawl(overrideJournalId = null) {
       text-align: center;
       text-shadow: 0 0 10px #000, 0 0 20px rgba(0,0,0,0.9);
       animation: runCrawl ${duration}s linear forwards;
-      pointer-events: none;
+      ${pointerEventsRule}
     }
     #simple-crawl-content a.content-link {
       background: none !important;
@@ -199,6 +211,58 @@ async function startJournalCrawl(overrideJournalId = null) {
     }
   `;
   document.head.appendChild(style);
+
+  // Interaktive Steuerung (Pause bei Hover & Scrubbing via Wheel)
+  if (interactive) {
+    const totalDistance = screenHeight + totalHeight + 100;
+    const startY = screenHeight;
+
+    const getCurrentY = () => {
+      const transform = window.getComputedStyle(contentEl).transform;
+      if (transform && transform !== "none") {
+        const matrix = new DOMMatrixReadOnly(transform);
+        return matrix.m42;
+      }
+      return startY;
+    };
+
+    const updateAnimationProgress = (newY) => {
+      const clampedY = Math.max(-totalHeight - 100, Math.min(screenHeight, newY));
+      const progress = Math.max(0, Math.min(1, (screenHeight - clampedY) / totalDistance));
+      const remainingTime = Math.max(0.1, duration * (1 - progress));
+      
+      contentEl.style.animation = "none";
+      contentEl.style.transform = `translateY(${clampedY}px)`;
+      
+      // Animation für Weiterschwung neu konfigurieren
+      const keyframesName = `crawlResume_${Date.now()}`;
+      const resumeStyle = document.createElement("style");
+      resumeStyle.innerHTML = `
+        @keyframes ${keyframesName} {
+          0% { transform: translateY(${clampedY}px); }
+          100% { transform: translateY(-${totalHeight + 100}px); }
+        }
+      `;
+      document.head.appendChild(resumeStyle);
+      contentEl.style.animation = `${keyframesName} ${remainingTime}s linear forwards`;
+      contentEl.style.animationPlayState = "paused";
+    };
+
+    container.addEventListener("mouseenter", () => {
+      contentEl.style.animationPlayState = "paused";
+    });
+
+    container.addEventListener("mouseleave", () => {
+      contentEl.style.animationPlayState = "running";
+    });
+
+    container.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const currentY = getCurrentY();
+      const step = e.deltaY * -0.9;
+      updateAnimationProgress(currentY + step);
+    }, { passive: false });
+  }
 
   contentEl.addEventListener("animationend", () => {
     cleanupCrawl();
