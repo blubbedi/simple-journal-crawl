@@ -2,7 +2,7 @@
     "id":  "simple-journal-crawl",
     "title":  "Simple Journal Crawl",
     "description":  "Projiziert ein auswaehlbares Journal als Scrolltext ueber den Bildschirm.",
-    "version":  "1.0.6",
+    "version":  "1.0.7",
     "compatibility":  {
                           "minimum":  "12",
                           "verified":  "13"

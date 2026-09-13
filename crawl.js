@@ -90,7 +90,6 @@ async function startJournalCrawl(overrideJournalId = null) {
   const speed = game.settings.get(MODULE_ID, "scrollSpeed") || 40;
   const container = document.createElement("div");
   container.id = "simple-crawl-container";
-  container.title = "Klicken oder Escape druecken zum Beenden";
   container.innerHTML = `<div id="simple-crawl-content">${pagesHtml.join("")}</div>`;
   document.body.appendChild(container);
 
@@ -103,22 +102,44 @@ async function startJournalCrawl(overrideJournalId = null) {
   style.id = "simple-crawl-style";
   style.innerHTML = `
     #simple-crawl-container {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0, 0, 0, 0.8); z-index: 9500; overflow: hidden;
-      display: flex; justify-content: center; cursor: pointer;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 60;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      pointer-events: none; /* Klicks gehen komplett durch ins Foundry-UI */
     }
     #simple-crawl-content {
-      position: absolute; top: 0; width: 65%; max-width: 850px;
-      color: #f0e6d2; font-family: var(--font-primary, sans-serif);
-      font-size: 1.4rem; line-height: 2.1; text-align: center;
+      position: absolute;
+      top: 0;
+      width: 65%;
+      max-width: 850px;
+      color: #f0e6d2;
+      font-family: var(--font-primary, sans-serif);
+      font-size: 1.4rem;
+      line-height: 2.1;
+      text-align: center;
       text-shadow: 0 0 10px #000, 0 0 20px rgba(0,0,0,0.9);
       animation: runCrawl ${duration}s linear forwards;
+      pointer-events: none; /* Auch der Text selbst blockiert keine Klicks */
     }
     #simple-crawl-content a.content-link {
-      background: none !important; border: none !important; color: #c9a55c !important; pointer-events: none;
+      background: none !important;
+      border: none !important;
+      color: #c9a55c !important;
     }
-    #simple-crawl-content table { margin: 2rem auto; border-collapse: collapse; }
-    #simple-crawl-content td, #simple-crawl-content th { padding: 0.5rem 1.5rem; }
+    #simple-crawl-content table {
+      margin: 2rem auto;
+      border-collapse: collapse;
+    }
+    #simple-crawl-content td, #simple-crawl-content th {
+      padding: 0.5rem 1.5rem;
+    }
     @keyframes runCrawl {
       0% { transform: translateY(${screenHeight}px); }
       100% { transform: translateY(-${totalHeight + 100}px); }
@@ -126,11 +147,14 @@ async function startJournalCrawl(overrideJournalId = null) {
   `;
   document.head.appendChild(style);
 
-  const close = () => cleanupCrawl();
-  container.addEventListener("click", close);
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") close();
-  }, { once: true });
+  // Beenden per Escape-Taste bleibt aktiv
+  const handleKeydown = (e) => {
+    if (e.key === "Escape") {
+      cleanupCrawl();
+      document.removeEventListener("keydown", handleKeydown);
+    }
+  };
+  document.addEventListener("keydown", handleKeydown);
 }
 
 window.startJournalCrawl = startJournalCrawl;
