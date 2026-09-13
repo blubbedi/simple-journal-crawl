@@ -60,7 +60,7 @@ Hooks.once("init", () => {
 
   game.settings.register(MODULE_ID, "interactiveControl", {
     name: "Interaktive Steuerung (Pause & Mausrad)",
-    hint: "Pausiert den Lauftext bei Mouseover und erlaubt manuelles Scrollen / Scrubben per Mausrad.",
+    hint: "Pausiert den Lauftext bei Mouseover ueber dem Text und erlaubt manuelles Scrollen / Scrubben per Mausrad.",
     scope: "world",
     config: true,
     type: Boolean,
@@ -153,7 +153,8 @@ async function startJournalCrawl(overrideJournalId = null) {
     ? `animation: containerFade ${duration}s ease-in-out forwards;`
     : "";
 
-  const pointerEventsRule = interactive ? "pointer-events: auto;" : "pointer-events: none;";
+  // Nur der eigentliche Text fängt Interaktionen ab
+  const textPointerEvents = interactive ? "pointer-events: auto; cursor: grab;" : "pointer-events: none;";
 
   const style = document.createElement("style");
   style.id = "simple-crawl-style";
@@ -169,7 +170,7 @@ async function startJournalCrawl(overrideJournalId = null) {
       overflow: hidden;
       display: flex;
       justify-content: center;
-      ${pointerEventsRule}
+      pointer-events: none; /* Volle Durchlässigkeit für den Canvas */
       ${maskRule}
       ${containerAnimation}
     }
@@ -185,7 +186,7 @@ async function startJournalCrawl(overrideJournalId = null) {
       text-align: center;
       text-shadow: 0 0 10px #000, 0 0 20px rgba(0,0,0,0.9);
       animation: runCrawl ${duration}s linear forwards;
-      ${pointerEventsRule}
+      ${textPointerEvents}
     }
     #simple-crawl-content a.content-link {
       background: none !important;
@@ -212,7 +213,7 @@ async function startJournalCrawl(overrideJournalId = null) {
   `;
   document.head.appendChild(style);
 
-  // Interaktive Steuerung (Pause bei Hover & Scrubbing via Wheel)
+  // Interaktions-Events nur direkt auf der Textspalte registrieren
   if (interactive) {
     const totalDistance = screenHeight + totalHeight + 100;
     const startY = screenHeight;
@@ -234,7 +235,6 @@ async function startJournalCrawl(overrideJournalId = null) {
       contentEl.style.animation = "none";
       contentEl.style.transform = `translateY(${clampedY}px)`;
       
-      // Animation für Weiterschwung neu konfigurieren
       const keyframesName = `crawlResume_${Date.now()}`;
       const resumeStyle = document.createElement("style");
       resumeStyle.innerHTML = `
@@ -248,15 +248,15 @@ async function startJournalCrawl(overrideJournalId = null) {
       contentEl.style.animationPlayState = "paused";
     };
 
-    container.addEventListener("mouseenter", () => {
+    contentEl.addEventListener("mouseenter", () => {
       contentEl.style.animationPlayState = "paused";
     });
 
-    container.addEventListener("mouseleave", () => {
+    contentEl.addEventListener("mouseleave", () => {
       contentEl.style.animationPlayState = "running";
     });
 
-    container.addEventListener("wheel", (e) => {
+    contentEl.addEventListener("wheel", (e) => {
       e.preventDefault();
       const currentY = getCurrentY();
       const step = e.deltaY * -0.9;
