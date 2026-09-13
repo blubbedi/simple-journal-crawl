@@ -75,11 +75,8 @@ Hooks.on("canvasReady", async (canvas) => {
 
 function resolveScenePlaylist(scene) {
   if (!scene) return null;
-  // 1. Direktes Dokument
   if (scene.playlist?.playAll) return scene.playlist;
-  // 2. ID-Referenz ueber game.playlists
   if (typeof scene.playlist === "string") return game.playlists.get(scene.playlist);
-  // 3. Neuere Foundry-Attribute
   if (scene.playlistSound) {
     const pl = game.playlists.find(p => p.sounds.has(scene.playlistSound));
     if (pl) return pl;
@@ -100,12 +97,9 @@ async function playSceneAudio(scene) {
       if (!playlist.playing) {
         await playlist.playAll();
       }
-    } else {
-      // Fallback: Falls die Szene Ambient-Sounds auf dem Canvas besitzt
-      if (canvas.sounds?.objects?.children?.length) {
-        for (const sound of canvas.sounds.objects.children) {
-          sound.play();
-        }
+    } else if (canvas.sounds?.objects?.children?.length) {
+      for (const sound of canvas.sounds.objects.children) {
+        sound.play();
       }
     }
   } catch (err) {
@@ -170,7 +164,7 @@ async function startJournalCrawl(overrideJournalId = null) {
   container.innerHTML = `<div id="simple-crawl-content">${pagesHtml.join("")}</div>`;
   document.body.appendChild(container);
 
-  // Audio An/Aus Toggle-Button
+  // Audio-Button links neben der Foundry-Sidebar
   const audioBtn = document.createElement("button");
   audioBtn.id = "simple-crawl-audio-btn";
   audioBtn.innerHTML = "🔊 Ton an";
@@ -254,7 +248,7 @@ async function startJournalCrawl(overrideJournalId = null) {
     }
     #simple-crawl-audio-btn {
       position: fixed;
-      right: 325px; /* Rueckt den Button sauber vor die Foundry-Sidebar */
+      right: 325px;
       bottom: 25px;
       z-index: 9999;
       background: rgba(18, 18, 22, 0.9);
