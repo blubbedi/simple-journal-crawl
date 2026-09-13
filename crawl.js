@@ -112,7 +112,7 @@ async function startJournalCrawl(overrideJournalId = null) {
       overflow: hidden;
       display: flex;
       justify-content: center;
-      pointer-events: none; /* Klicks gehen komplett durch ins Foundry-UI */
+      pointer-events: none;
     }
     #simple-crawl-content {
       position: absolute;
@@ -126,7 +126,7 @@ async function startJournalCrawl(overrideJournalId = null) {
       text-align: center;
       text-shadow: 0 0 10px #000, 0 0 20px rgba(0,0,0,0.9);
       animation: runCrawl ${duration}s linear forwards;
-      pointer-events: none; /* Auch der Text selbst blockiert keine Klicks */
+      pointer-events: none;
     }
     #simple-crawl-content a.content-link {
       background: none !important;
@@ -147,14 +147,10 @@ async function startJournalCrawl(overrideJournalId = null) {
   `;
   document.head.appendChild(style);
 
-  // Beenden per Escape-Taste bleibt aktiv
-  const handleKeydown = (e) => {
-    if (e.key === "Escape") {
-      cleanupCrawl();
-      document.removeEventListener("keydown", handleKeydown);
-    }
-  };
-  document.addEventListener("keydown", handleKeydown);
+  // Nach Ablauf der CSS-Animation wird das Overlay automatisch aufgeraeumt
+  contentEl.addEventListener("animationend", () => {
+    cleanupCrawl();
+  }, { once: true });
 }
 
 window.startJournalCrawl = startJournalCrawl;
