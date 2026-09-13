@@ -1,21 +1,57 @@
-// ==================== EINSTELLUNGEN ====================
-const CRAWL_SETTINGS = {
-  triggerScene: "Abspann",
-  journalName: "Charakterliste (11.9.2026)",
-  scrollSpeedPxPerSec: 40,
-  loop: false,
-  backgroundColor: "rgba(0, 0, 0, 0.75)"
-};
-// =======================================================
+const MODULE_ID = "simple-journal-crawl";
+
+Hooks.once("init", () => {
+  game.settings.register(MODULE_ID, "triggerScene", {
+    name: "Trigger-Szene",
+    hint: "Szene, bei deren Aktivierung der Crawl startet (leer lassen für keinen automatischen Start).",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: () => {
+      const list = { "": "-- Deaktiviert --" };
+      for (const scene of game.scenes) {
+        list[scene.id] = scene.name;
+      }
+      return list;
+    },
+    default: ""
+  });
+
+  game.settings.register(MODULE_ID, "targetJournal", {
+    name: "Journal-Eintrag",
+    hint: "Das Journal, dessen Seiten für den Crawl genutzt werden.",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: () => {
+      const list = { "": "-- Kein Journal gewaehlt --" };
+      for (const j of game.journal) {
+        list[j.id] = j.name;
+      }
+      return list;
+    },
+    default: ""
+  });
+
+  game.settings.register(MODULE_ID, "scrollSpeed", {
+    name: "Scroll-Geschwindigkeit",
+    hint: "Pixel pro Sekunde (Standard: 40). Hoeher = schneller.",
+    scope: "world",
+    config: true,
+    type: Number,
+    range: { min: 10, max: 150, step: 5 },
+    default: 40
+  });
+});
 
 Hooks.on("canvasReady", async (canvas) => {
-  if (CRAWL_SETTINGS.triggerScene && canvas.scene?.name !== CRAWL_SETTINGS.triggerScene) {
-    cleanupCrawl();
-    return;
-  }
+  const triggerSceneId = game.settings.get(MODULE_ID, "triggerScene");
+  if (!triggerSceneId) return;
 
-  if (CRAWL_SETTINGS.triggerScene && canvas.scene?.name === CRAWL_SETTINGS.triggerScene) {
+  if (canvas.scene?.id === triggerSceneId) {
     await startJournalCrawl();
+  } else {
+    cleanupCrawl();
   }
 });
 
@@ -24,12 +60,14 @@ function cleanupCrawl() {
   document.getElementById("simple-crawl-style")?.remove();
 }
 
-async function startJournalCrawl() {
+async function startJournalCrawl(overrideJournalId = null) {
   cleanupCrawl();
 
-  const journal = game.journal.getName(CRAWL_SETTINGS.journalName);
+  const journalId = overrideJournalId || game.settings.get(MODULE_ID, "targetJournal");
+  const journal = game.journal.get(journalId);
+
   if (!journal) {
-    console.warn(`[Simple Journal Crawl] Journal "${CRAWL_SETTINGS.journalName}" wurde nicht gefunden.`);
+    ui.notifications.warn("[Simple Journal Crawl] Bitte waehle ein gueltiges Journal in den Modul-Einstellungen.");
     return;
   }
 
@@ -49,6 +87,7 @@ async function startJournalCrawl() {
 
   if (pagesHtml.length === 0) return;
 
+  const speed = game.settings.get(MODULE_ID, "scrollSpeed") || 40;
   const container = document.createElement("div");
   container.id = "simple-crawl-container";
   container.title = "Klicken oder Escape druecken zum Beenden";
@@ -58,15 +97,14 @@ async function startJournalCrawl() {
   const contentEl = document.getElementById("simple-crawl-content");
   const totalHeight = contentEl.offsetHeight;
   const screenHeight = window.innerHeight;
-  const duration = Math.max(20, Math.round((totalHeight + screenHeight) / CRAWL_SETTINGS.scrollSpeedPxPerSec));
-  const loopMode = CRAWL_SETTINGS.loop ? "infinite" : "forwards";
+  const duration = Math.max(15, Math.round((totalHeight + screenHeight) / speed));
 
   const style = document.createElement("style");
   style.id = "simple-crawl-style";
   style.innerHTML = `
     #simple-crawl-container {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: ${CRAWL_SETTINGS.backgroundColor}; z-index: 9500; overflow: hidden;
+      background: rgba(0, 0, 0, 0.8); z-index: 9500; overflow: hidden;
       display: flex; justify-content: center; cursor: pointer;
     }
     #simple-crawl-content {
@@ -74,7 +112,7 @@ async function startJournalCrawl() {
       color: #f0e6d2; font-family: var(--font-primary, sans-serif);
       font-size: 1.4rem; line-height: 2.1; text-align: center;
       text-shadow: 0 0 10px #000, 0 0 20px rgba(0,0,0,0.9);
-      animation: runCrawl ${duration}s linear ${loopMode};
+      animation: runCrawl ${duration}s linear forwards;
     }
     #simple-crawl-content a.content-link {
       background: none !important; border: none !important; color: #c9a55c !important; pointer-events: none;
