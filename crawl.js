@@ -1,4 +1,5 @@
 const MODULE_ID = "simple-journal-crawl";
+let crawlAudioMuted = false;
 
 Hooks.once("init", () => {
   game.settings.register(MODULE_ID, "triggerScene", {
@@ -64,6 +65,7 @@ Hooks.on("canvasReady", async (canvas) => {
   if (!triggerSceneId) return;
 
   if (canvas.scene?.id === triggerSceneId) {
+    crawlAudioMuted = false;
     unlockAndPlaySceneAudio(canvas.scene);
     await startJournalCrawl();
   } else {
@@ -76,19 +78,31 @@ async function unlockAndPlaySceneAudio(scene) {
     if (game.audio?.unlock) {
       await game.audio.unlock();
     }
-    if (scene?.playlist) {
+    if (scene?.playlist && !crawlAudioMuted) {
       const playlist = scene.playlist;
       if (!playlist.playing) {
         await playlist.playAll();
       }
     }
   } catch (err) {
-    console.warn("[Simple Journal Crawl] Audio konnte nicht automatisch gestartet werden:", err);
+    console.warn("[Simple Journal Crawl] Audio-Start blockiert oder fehlgeschlagen:", err);
+  }
+}
+
+function stopSceneAudio() {
+  try {
+    const scene = canvas.scene;
+    if (scene?.playlist && scene.playlist.playing) {
+      scene.playlist.stopAll();
+    }
+  } catch (err) {
+    console.warn("[Simple Journal Crawl] Audio-Stopp fehlgeschlagen:", err);
   }
 }
 
 function cleanupCrawl() {
   document.getElementById("simple-crawl-container")?.remove();
+  document.getElementById("simple-crawl-audio-btn")?.remove();
   document.getElementById("simple-crawl-style")?.remove();
 }
 
@@ -127,12 +141,33 @@ async function startJournalCrawl(overrideJournalId = null) {
   container.innerHTML = `<div id="simple-crawl-content">${pagesHtml.join("")}</div>`;
   document.body.appendChild(container);
 
+  // Audio An/Aus Toggle-Button unten rechts
+  const audioBtn = document.createElement("button");
+  audioBtn.id = "simple-crawl-audio-btn";
+  audioBtn.innerHTML = "🔊 Ton an";
+  audioBtn.title = "Szenen-Sound stummschalten oder abspielen";
+  document.body.appendChild(audioBtn);
+
+  audioBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    crawlAudioMuted = !crawlAudioMuted;
+
+    if (crawlAudioMuted) {
+      stopSceneAudio();
+      audioBtn.innerHTML = "🔇 Ton aus";
+      audioBtn.classList.add("muted");
+    } else {
+      audioBtn.innerHTML = "🔊 Ton an";
+      audioBtn.classList.remove("muted");
+      unlockAndPlaySceneAudio(canvas.scene);
+    }
+  });
+
   const contentEl = document.getElementById("simple-crawl-content");
   const totalHeight = contentEl.offsetHeight;
   const screenHeight = window.innerHeight;
   const duration = Math.max(15, Math.round((totalHeight + screenHeight) / speed));
 
-  // CSS-Maskierung fuer weiche Raender oben und unten
   const maskRule = (fade === "mask" || fade === "both")
     ? `
       -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 18%, black 82%, transparent 100%);
@@ -140,7 +175,6 @@ async function startJournalCrawl(overrideJournalId = null) {
     `
     : "";
 
-  // Globale Opacity-Blende (Ein- und Ausfaden der gesamten Flaeche)
   const containerAnimation = (fade === "fadeFull" || fade === "both")
     ? `animation: containerFade ${duration}s ease-in-out forwards;`
     : "";
@@ -188,6 +222,32 @@ async function startJournalCrawl(overrideJournalId = null) {
     }
     #simple-crawl-content td, #simple-crawl-content th {
       padding: 0.5rem 1.5rem;
+    }
+    #simple-crawl-audio-btn {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 9999;
+      background: rgba(20, 20, 25, 0.85);
+      color: #c9a55c;
+      border: 1px solid rgba(201, 165, 92, 0.6);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.95rem;
+      font-family: var(--font-primary, sans-serif);
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      transition: all 0.2s ease;
+    }
+    #simple-crawl-audio-btn:hover {
+      background: rgba(35, 35, 45, 0.95);
+      border-color: #ffd700;
+      color: #fff;
+    }
+    #simple-crawl-audio-btn.muted {
+      color: #888;
+      border-color: rgba(120, 120, 120, 0.4);
     }
     @keyframes runCrawl {
       0% { transform: translateY(${screenHeight}px); }
